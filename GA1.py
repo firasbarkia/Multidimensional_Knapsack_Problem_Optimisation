@@ -1,4 +1,3 @@
-# ga.py
 import numpy as np
 
 def GA1(func, N=30, D=28, Tmax=1000, step=25):

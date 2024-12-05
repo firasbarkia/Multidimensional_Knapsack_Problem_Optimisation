@@ -1,4 +1,3 @@
-# pso.py
 import numpy as np
 
 def sigmoid(x):
@@ -26,9 +25,7 @@ def BPSO1(func, N=30, D=28, Tmax=1000, step=25):
 
         probabilities = sigmoid(velocities)
         random_values = np.random.uniform(0, 1, (N, D))
-        # Example initialization of positions in BPSO1
-        positions = np.random.randint(2, size=(N, D))  # D is set globally
-
+        positions = (probabilities >= random_values).astype(int)
 
         costs = np.array([func(pos) for pos in positions])
         better_mask = costs < personal_best_costs

@@ -1,4 +1,3 @@
-# main.py
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,24 +30,22 @@ def run_algorithms(problem_name):
         return
 
     pso1_results = []
-    pso2_results = []
     ga_results = []
     tbpso_results = []
     ga2_results = []
 
     for run in range(test_runs):
         print(f"Run {run + 1} - BPSO1")
-        pso1_results.append(BPSO1(func)) 
+        pso1_results.append(BPSO1(func, N=N, D=D, Tmax=Tmax, step=step))
         print(f"Run {run + 1} - GA")
-        ga_results.append(GA1(func))
+        ga_results.append(GA1(func, N=N, D=D, Tmax=Tmax, step=step))
         print(f"Run {run + 1} - TBPSO")
-        tbpso_results.append(BPSO2(func))
+        tbpso_results.append(BPSO2(func, N=N, D=D, Tmax=Tmax, step=step))
         print(f"Run {run + 1} - GA2")
-        ga2_results.append(GA2(func))
+        ga2_results.append(GA2(func, N=N, D=D, Tmax=Tmax, step=step))
 
     # Calculate means
     pso1_means = np.mean(pso1_results, axis=0)
-    pso2_means = np.mean(pso2_results, axis=0)
     ga_means = np.mean(ga_results, axis=0)
     tbpso_means = np.mean(tbpso_results, axis=0)
     ga2_means = np.mean(ga2_results, axis=0)
