@@ -18,72 +18,108 @@ Tmax = 1000
 step = 25
 test_runs = 30
 
-
 def run_single_algorithm(algorithm, func, N, D, Tmax, step, run_id):
     """Runs a single instance of an algorithm."""
     print(f"Run {run_id} - {algorithm.__name__}")
-    return algorithm(func, N=N, D=D, Tmax=Tmax, step=step)
+    try:
+        result = algorithm(func, N=N, D=D, Tmax=Tmax, step=step)
+        return result
+    except Exception as e:
+        print(f"Error during the execution of {algorithm.__name__} in run {run_id}: {e}")
+        return []
 
+def analyze_final_results(file_name, problem_name):
+    final_values = {
+        "BPSO1": [],
+        "BPSO2": [],
+        "BPSO3": [],
+        "GA1": [],
+        "GA2": [],
+        "GA3": []
+    }
+
+    try:
+        with open(file_name, "r") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        print(f"Error: File '{file_name}' not found!")
+        return
+
+    section_indices = {}
+    for key in final_values.keys():
+        try:
+            section_indices[key] = lines.index(f"{key} Results:\n") + 1
+        except ValueError:
+            section_indices[key] = None
+
+    section_keys = list(section_indices.keys())
+    for i, key in enumerate(section_keys):
+        start = section_indices[key]
+        if start is None:
+            continue
+        end = section_indices[section_keys[i + 1]] - 1 if i + 1 < len(section_keys) and section_indices[section_keys[i + 1]] is not None else len(lines)
+        for line in lines[start:end]:
+            if line.strip() and not line.startswith(f"{key} Results:"):
+                try:
+                    final_values[key].append(float(line.strip().split()[-1]))
+                except ValueError:
+                    pass
+
+    stats = {}
+    for key, values in final_values.items():
+        if values:
+            stats[key] = {
+                "Best": np.max(values),
+                "Mean": np.mean(values),
+                "StdDev": np.std(values)
+            }
+        else:
+            stats[key] = {
+                "Best": None,
+                "Mean": None,
+                "StdDev": None
+            }
+
+    csv_filename = f"./Over_all_results/{problem_name}_overall_results_parallel.csv"
+    try:
+        with open(csv_filename, "w", newline="") as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(["Algorithm", "Best", "Mean", "StdDev"])
+            for key, stat in stats.items():
+                csvwriter.writerow([key, stat["Best"], stat["Mean"], stat["StdDev"]])
+        print(f"Results saved to '{csv_filename}'.")
+    except IOError as e:
+        print(f"Error saving results: {e}")
 
 def run_algorithms(problem_name):
     global D
     if problem_name in ["MKP1", "MKP2", "MKP3", "MKP4", "MKP5", "MKP6"]:
         D = 28
         func = eval(problem_name)
-    elif problem_name in ["MKP7", "MKP8"]:  # MKP8 requires D=105
+    elif problem_name in ["MKP7", "MKP8"]:
         D = 105
         func = eval(problem_name)
     elif problem_name in ["MKP9", "MKP10"]:
         D = 60
         func = eval(problem_name)
     else:
-        print("Ce nom n'est pas dans la liste ! ")
+        print("Ce nom n'est pas dans la liste !")
         return
 
-    # List of algorithms to run
     algorithms = [BPSO1, GA1, BPSO2, GA2, BPSO3, GA3]
-
-    # Container for results
     results = {alg.__name__: [] for alg in algorithms}
 
-    # Parallel execution
     with ProcessPoolExecutor() as executor:
         for algorithm in algorithms:
             futures = [
                 executor.submit(run_single_algorithm, algorithm, func, N, D, Tmax, step, run_id)
                 for run_id in range(1, test_runs + 1)
             ]
-
-            # Collect results as they complete
             for future in futures:
                 results[algorithm.__name__].append(future.result())
 
-    # Calculate overall statistics
-    def calculate_overall_stats(results):
-        overall_best = np.min(results)         # Overall best score across all runs
-        overall_avg = np.mean(results)         # Overall average across all runs
-        overall_std = np.std(results)          # Overall standard deviation across all runs
-        return overall_best, overall_avg, overall_std
-
-    overall_stats = {
-        algorithm: calculate_overall_stats(results[algorithm])
-        for algorithm in results
-    }
-
-    # Save only overall values to CSV
-    csv_filename = f"./Over_all_results/{problem_name}_overall_results_parallel.csv"
-    with open(csv_filename, "w", newline="") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        # Write headers
-        csvwriter.writerow(["Algorithm", "Overall Best Score", "Overall Average", "Overall Standard Deviation"])
-        # Write overall statistics
-        for algorithm, stats in overall_stats.items():
-            csvwriter.writerow([algorithm, *stats])
-
-    print(f"Overall results saved to {csv_filename}")
-
-    # Write detailed results to a text file
-    with open(f"./Results/results{problem_name}.txt", "w") as f:
+    results_filename = f"./Results/results{problem_name}.txt"
+    with open(results_filename, "w") as f:
         f.write(f"{problem_name} Results:\n")
         for algorithm in results:
             f.write(f"{algorithm} Results:\n")
@@ -93,7 +129,6 @@ def run_algorithms(problem_name):
 
     print("Detailed results saved to results.txt")
 
-    # Plotting the results (using average scores for the plot)
     iterations = np.arange(step, Tmax + step, step)
     plt.figure(figsize=(12, 7))
 
@@ -108,16 +143,16 @@ def run_algorithms(problem_name):
     plt.grid()
     plt.yscale('log')
 
-    # Save plot with the MKP problem name
     plot_filename = f"./Graphe/{problem_name}_comparison_graph.png"
     plt.savefig(plot_filename)
     plt.show()
 
     print(f"Graph saved to {plot_filename}")
 
+    analyze_final_results(results_filename, problem_name)
 
 if __name__ == "__main__":
     start_time = time.time()
     problem_name = input("Donner le nom de problème (ex: MKP1, MKP2, ...): ")
     run_algorithms(problem_name)
-    print(f"Temps d'exécution total : {time.time() - start_time:.2f} secondes")
+    print(f"Temps d'exécution total : {time.time() - start_time:.2f} seconds")
